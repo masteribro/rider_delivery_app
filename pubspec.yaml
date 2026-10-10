@@ -1,0 +1,47 @@
+name: rider_delivery_app
+description: "Kali Rider - Delivery Partner App"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.8
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # Firebase
+  firebase_core: ^3.13.0
+  firebase_auth: ^5.5.4
+  cloud_firestore: ^5.6.12
+
+  # State Management
+  flutter_bloc: ^9.1.0
+  equatable: ^2.0.7
+
+  # UI
+  flutter_screenutil: ^5.9.3
+  google_fonts: ^6.2.1
+  cached_network_image: ^3.4.1
+  shimmer: ^3.0.0
+  iconsax: ^0.0.8
+
+  # Navigation
+  go_router: ^15.1.2
+
+  # Utils
+  intl: ^0.20.3
+  uuid: ^4.6.0
+  url_launcher: ^6.3.1
+  geolocator: ^13.0.2
+  shared_preferences: ^2.5.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
