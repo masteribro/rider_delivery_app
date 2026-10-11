@@ -106,11 +106,14 @@ class AuthCubit extends Cubit<AuthState> {
         plateNumber: plateNumber,
         createdAt: DateTime.now(),
       );
-      await _authRepo.createRiderProfile(rider);
+      await _authRepo.createRiderProfile(rider).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () => throw Exception('Write timed out — check Firestore rules'),
+      );
       _riderProfile = rider;
       emit(AuthAuthenticated(rider));
     } catch (e) {
-      emit(AuthError('Failed to save profile'));
+      emit(AuthError('Failed to save profile: $e'));
     }
   }
 
@@ -145,13 +148,16 @@ class AuthCubit extends Cubit<AuthState> {
 
   Future<void> toggleOnlineStatus() async {
     if (_riderProfile == null) return;
+    final newStatus = !_riderProfile!.isOnline;
+    _riderProfile = _riderProfile!.copyWith(isOnline: newStatus);
+    emit(AuthAuthenticated(_riderProfile!));
     try {
-      final newStatus = !_riderProfile!.isOnline;
-      await _authRepo.setOnlineStatus(_riderProfile!.uid, newStatus);
-      _riderProfile = _riderProfile!.copyWith(isOnline: newStatus);
-      emit(AuthAuthenticated(_riderProfile!));
+      await _authRepo.setOnlineStatus(_riderProfile!.uid, newStatus).timeout(
+        const Duration(seconds: 10),
+      );
     } catch (e) {
-      emit(AuthError('Failed to update status'));
+      _riderProfile = _riderProfile!.copyWith(isOnline: !newStatus);
+      emit(AuthAuthenticated(_riderProfile!));
     }
   }
 

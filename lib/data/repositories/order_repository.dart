@@ -10,13 +10,13 @@ class OrderRepository {
     return _firestore
         .collection('orders')
         .where('status', isEqualTo: 'ready')
-        .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
       final orders = snapshot.docs
           .map((doc) => OrderModel.fromFirestore(doc))
           .where((order) => order.riderId == null || order.riderId!.isEmpty)
           .toList();
+      orders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       _log('WATCH available orders -> ${orders.length} results');
       return orders;
     });
@@ -27,13 +27,14 @@ class OrderRepository {
     return _firestore
         .collection('orders')
         .where('riderId', isEqualTo: riderId)
-        .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-      _log('WATCH rider orders -> ${snapshot.docs.length} results');
-      return snapshot.docs
+      final orders = snapshot.docs
           .map((doc) => OrderModel.fromFirestore(doc))
           .toList();
+      orders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      _log('WATCH rider orders -> ${orders.length} results');
+      return orders;
     });
   }
 
@@ -109,12 +110,13 @@ class OrderRepository {
         .collection('orders')
         .where('riderId', isEqualTo: riderId)
         .where('status', isEqualTo: 'delivered')
-        .orderBy('deliveredAt', descending: true)
         .get();
-    _log('GET completed orders -> ${snapshot.docs.length} results');
-    return snapshot.docs
+    final orders = snapshot.docs
         .map((doc) => OrderModel.fromFirestore(doc))
         .toList();
+    orders.sort((a, b) => (b.deliveredAt ?? b.createdAt).compareTo(a.deliveredAt ?? a.createdAt));
+    _log('GET completed orders -> ${orders.length} results');
+    return orders;
   }
 
   void _log(String message) {

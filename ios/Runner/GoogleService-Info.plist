@@ -3,17 +3,17 @@
 <plist version="1.0">
 <dict>
 	<key>API_KEY</key>
-	<string>AIzaSyDZufpAH_lorEBUAZSFH_Poaaf5FPbtFKg</string>
+	<string>AIzaSyCCz9h3tZ7YaxJP-S2EZGVhuj6W5gaA1q4</string>
 	<key>GCM_SENDER_ID</key>
-	<string>27623230714</string>
+	<string>106637930808</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
 	<string>com.example.riderDeliveryApp</string>
 	<key>PROJECT_ID</key>
-	<string>kaliriderapp</string>
+	<string>in-demand-delivery-app</string>
 	<key>STORAGE_BUCKET</key>
-	<string>kaliriderapp.firebasestorage.app</string>
+	<string>in-demand-delivery-app.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:27623230714:ios:4789807039d57227b6cd43</string>
+	<string>1:106637930808:ios:8140fa719a8e4baa8091cd</string>
 </dict>
 </plist>

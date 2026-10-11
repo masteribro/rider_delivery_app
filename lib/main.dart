@@ -13,7 +13,9 @@ import 'presentation/bloc/orders/orders_cubit.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  }
 
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

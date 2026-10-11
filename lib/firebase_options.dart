@@ -41,46 +41,46 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBoIdOUz8Ga18CT_43cqpo2dh0WMfvZMEc',
-    appId: '1:27623230714:web:2b21b6904bd281f1b6cd43',
-    messagingSenderId: '27623230714',
-    projectId: 'kaliriderapp',
-    authDomain: 'kaliriderapp.firebaseapp.com',
-    storageBucket: 'kaliriderapp.firebasestorage.app',
+    apiKey: 'AIzaSyCm0FDaNw8nOkXDHQuC9HKl01ZUtPSsBQg',
+    appId: '1:106637930808:web:9974be84e3af08938091cd',
+    messagingSenderId: '106637930808',
+    projectId: 'in-demand-delivery-app',
+    authDomain: 'in-demand-delivery-app.firebaseapp.com',
+    storageBucket: 'in-demand-delivery-app.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDC1pp24W32FsaYbxz_djtiuGWQkIISSYI',
-    appId: '1:27623230714:android:e442702afcf8ac7bb6cd43',
-    messagingSenderId: '27623230714',
-    projectId: 'kaliriderapp',
-    storageBucket: 'kaliriderapp.firebasestorage.app',
+    apiKey: 'AIzaSyBSib_n2w85g7MGTbjyu2r-ehkebk-v1bc',
+    appId: '1:106637930808:android:1bb1749da87d0de58091cd',
+    messagingSenderId: '106637930808',
+    projectId: 'in-demand-delivery-app',
+    storageBucket: 'in-demand-delivery-app.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDZufpAH_lorEBUAZSFH_Poaaf5FPbtFKg',
-    appId: '1:27623230714:ios:4789807039d57227b6cd43',
-    messagingSenderId: '27623230714',
-    projectId: 'kaliriderapp',
-    storageBucket: 'kaliriderapp.firebasestorage.app',
+    apiKey: 'AIzaSyCCz9h3tZ7YaxJP-S2EZGVhuj6W5gaA1q4',
+    appId: '1:106637930808:ios:8140fa719a8e4baa8091cd',
+    messagingSenderId: '106637930808',
+    projectId: 'in-demand-delivery-app',
+    storageBucket: 'in-demand-delivery-app.firebasestorage.app',
     iosBundleId: 'com.example.riderDeliveryApp',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyDZufpAH_lorEBUAZSFH_Poaaf5FPbtFKg',
-    appId: '1:27623230714:ios:4789807039d57227b6cd43',
-    messagingSenderId: '27623230714',
-    projectId: 'kaliriderapp',
-    storageBucket: 'kaliriderapp.firebasestorage.app',
+    apiKey: 'AIzaSyCCz9h3tZ7YaxJP-S2EZGVhuj6W5gaA1q4',
+    appId: '1:106637930808:ios:8140fa719a8e4baa8091cd',
+    messagingSenderId: '106637930808',
+    projectId: 'in-demand-delivery-app',
+    storageBucket: 'in-demand-delivery-app.firebasestorage.app',
     iosBundleId: 'com.example.riderDeliveryApp',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyBoIdOUz8Ga18CT_43cqpo2dh0WMfvZMEc',
-    appId: '1:27623230714:web:ef54c778e1025043b6cd43',
-    messagingSenderId: '27623230714',
-    projectId: 'kaliriderapp',
-    authDomain: 'kaliriderapp.firebaseapp.com',
-    storageBucket: 'kaliriderapp.firebasestorage.app',
+    apiKey: 'AIzaSyCm0FDaNw8nOkXDHQuC9HKl01ZUtPSsBQg',
+    appId: '1:106637930808:web:6038cf5a0d2ccef88091cd',
+    messagingSenderId: '106637930808',
+    projectId: 'in-demand-delivery-app',
+    authDomain: 'in-demand-delivery-app.firebaseapp.com',
+    storageBucket: 'in-demand-delivery-app.firebasestorage.app',
   );
 }

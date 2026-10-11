@@ -40,6 +40,7 @@ class OrdersCubit extends Cubit<OrdersState> {
           emit(OrdersLoaded(myOrders: orders));
         }
       },
+      onError: (e) => emit(OrdersError(e.toString())),
     );
 
     _activeSub?.cancel();
@@ -52,6 +53,7 @@ class OrdersCubit extends Cubit<OrdersState> {
           emit(OrdersLoaded(activeDeliveries: orders));
         }
       },
+      onError: (e) => emit(OrdersError(e.toString())),
     );
   }
 

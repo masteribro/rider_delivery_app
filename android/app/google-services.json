@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "27623230714",
-    "project_id": "kaliriderapp",
-    "storage_bucket": "kaliriderapp.firebasestorage.app"
+    "project_number": "106637930808",
+    "project_id": "in-demand-delivery-app",
+    "storage_bucket": "in-demand-delivery-app.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:27623230714:android:e442702afcf8ac7bb6cd43",
+        "mobilesdk_app_id": "1:106637930808:android:1bb1749da87d0de58091cd",
         "android_client_info": {
           "package_name": "com.example.rider_delivery_app"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDC1pp24W32FsaYbxz_djtiuGWQkIISSYI"
+          "current_key": "AIzaSyBSib_n2w85g7MGTbjyu2r-ehkebk-v1bc"
         }
       ],
       "services": {
