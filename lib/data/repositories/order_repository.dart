@@ -83,13 +83,48 @@ class OrderRepository {
     await _firestore.collection('riders').doc(riderId).update({
       'isOnDelivery': true,
     });
+
+    // Create notification for the rider
+    final orderDoc = await _firestore.collection('orders').doc(orderId).get();
+    final vendorName = orderDoc.data()?['vendorName'] ?? 'Unknown';
+    await _firestore.collection('notifications').add({
+      'riderId': riderId,
+      'title': 'Order Accepted',
+      'body': 'You accepted an order from $vendorName. Head to the store for pickup!',
+      'type': 'order_update',
+      'orderId': orderId,
+      'isRead': false,
+      'createdAt': Timestamp.now(),
+    });
+
     _log('ACCEPT order/$orderId -> SUCCESS');
+  }
+
+  /// Verify delivery PIN before completing delivery.
+  /// Returns true if PIN matches, false otherwise.
+  Future<bool> verifyDeliveryPin(String orderId, String enteredPin) async {
+    _log('VERIFY PIN order/$orderId');
+    final orderDoc = await _firestore.collection('orders').doc(orderId).get();
+    final storedPin = orderDoc.data()?['deliveryPin'] as String?;
+    if (storedPin == null || storedPin.isEmpty) {
+      // No PIN set on order — allow delivery (backwards compatible)
+      _log('VERIFY PIN order/$orderId -> no PIN set, allowing');
+      return true;
+    }
+    final matches = storedPin == enteredPin;
+    _log('VERIFY PIN order/$orderId -> ${matches ? 'MATCH' : 'MISMATCH'}');
+    return matches;
   }
 
   Future<void> completeDelivery(String orderId, String riderId) async {
     _log('COMPLETE order/$orderId');
     final orderDoc = await _firestore.collection('orders').doc(orderId).get();
-    final deliveryFee = (orderDoc.data()?['deliveryFee'] ?? 0).toDouble();
+    final orderData = orderDoc.data();
+    final serviceFee = (orderData?['serviceFee'] ?? 0).toDouble();
+    final deliveryFee = (orderData?['deliveryFee'] ?? 0).toDouble();
+    // Rider earns the service fee; fallback to delivery fee if no service fee
+    final riderEarning = serviceFee > 0 ? serviceFee : deliveryFee;
+    final vendorName = orderData?['vendorName'] ?? 'Unknown';
 
     await _firestore.collection('orders').doc(orderId).update({
       'status': 'delivered',
@@ -99,9 +134,21 @@ class OrderRepository {
     await _firestore.collection('riders').doc(riderId).update({
       'isOnDelivery': false,
       'completedDeliveries': FieldValue.increment(1),
-      'totalEarnings': FieldValue.increment(deliveryFee),
+      'totalEarnings': FieldValue.increment(riderEarning),
     });
-    _log('COMPLETE order/$orderId -> SUCCESS');
+
+    // Create earning notification
+    await _firestore.collection('notifications').add({
+      'riderId': riderId,
+      'title': 'Delivery Complete!',
+      'body': 'You earned ${_formatNaira(riderEarning)} for delivering from $vendorName.',
+      'type': 'earning',
+      'orderId': orderId,
+      'isRead': false,
+      'createdAt': Timestamp.now(),
+    });
+
+    _log('COMPLETE order/$orderId -> SUCCESS (earned: $riderEarning)');
   }
 
   Future<List<OrderModel>> getCompletedOrders(String riderId) async {
@@ -117,6 +164,10 @@ class OrderRepository {
     orders.sort((a, b) => (b.deliveredAt ?? b.createdAt).compareTo(a.deliveredAt ?? a.createdAt));
     _log('GET completed orders -> ${orders.length} results');
     return orders;
+  }
+
+  String _formatNaira(double amount) {
+    return '\u20A6${amount.toStringAsFixed(0)}';
   }
 
   void _log(String message) {

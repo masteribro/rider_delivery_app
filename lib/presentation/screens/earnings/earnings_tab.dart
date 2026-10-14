@@ -21,6 +21,8 @@ class EarningsTab extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildEarningsSummary(context),
+            const SizedBox(height: 16),
+            _buildEarningsBreakdown(context),
             const SizedBox(height: 24),
             Text('Recent Deliveries', style: AppTextStyles.h3),
             const SizedBox(height: 12),
@@ -88,6 +90,95 @@ class EarningsTab extends StatelessWidget {
     );
   }
 
+  Widget _buildEarningsBreakdown(BuildContext context) {
+    return BlocBuilder<OrdersCubit, OrdersState>(
+      builder: (context, state) {
+        final allOrders = state is OrdersLoaded ? state.myOrders : <OrderModel>[];
+        final delivered = allOrders.where((o) => o.status == 'delivered').toList();
+
+        // Calculate today's earnings
+        final today = DateTime.now();
+        final todayDeliveries = delivered.where((o) {
+          final date = o.deliveredAt ?? o.createdAt;
+          return date.year == today.year &&
+              date.month == today.month &&
+              date.day == today.day;
+        }).toList();
+
+        final todayEarnings = todayDeliveries.fold<double>(
+          0,
+          (sum, o) => sum + (o.serviceFee > 0 ? o.serviceFee : o.deliveryFee),
+        );
+
+        // Calculate this week's earnings
+        final weekStart = today.subtract(Duration(days: today.weekday - 1));
+        final weekDeliveries = delivered.where((o) {
+          final date = o.deliveredAt ?? o.createdAt;
+          return date.isAfter(DateTime(weekStart.year, weekStart.month, weekStart.day));
+        }).toList();
+
+        final weekEarnings = weekDeliveries.fold<double>(
+          0,
+          (sum, o) => sum + (o.serviceFee > 0 ? o.serviceFee : o.deliveryFee),
+        );
+
+        return Row(
+          children: [
+            Expanded(
+              child: _buildBreakdownCard(
+                label: "Today",
+                amount: todayEarnings,
+                count: todayDeliveries.length,
+                color: AppColors.success,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildBreakdownCard(
+                label: "This Week",
+                amount: weekEarnings,
+                count: weekDeliveries.length,
+                color: AppColors.info,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildBreakdownCard({
+    required String label,
+    required double amount,
+    required int count,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border, width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: AppTextStyles.caption),
+          const SizedBox(height: 8),
+          Text(
+            NumberFormat.currency(symbol: '\u20A6', decimalDigits: 0).format(amount),
+            style: AppTextStyles.labelLarge.copyWith(color: color),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '$count deliveries',
+            style: AppTextStyles.caption,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDeliveryHistory(BuildContext context) {
     return BlocBuilder<OrdersCubit, OrdersState>(
       builder: (context, state) {
@@ -125,6 +216,8 @@ class EarningsTab extends StatelessWidget {
   }
 
   Widget _buildDeliveryItem(OrderModel order) {
+    final riderEarning = order.serviceFee > 0 ? order.serviceFee : order.deliveryFee;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -159,9 +252,19 @@ class EarningsTab extends StatelessWidget {
               ],
             ),
           ),
-          Text(
-            '+${NumberFormat.currency(symbol: '\u20A6', decimalDigits: 0).format(order.deliveryFee)}',
-            style: AppTextStyles.labelMedium.copyWith(color: AppColors.success),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '+${NumberFormat.currency(symbol: '\u20A6', decimalDigits: 0).format(riderEarning)}',
+                style: AppTextStyles.labelMedium.copyWith(color: AppColors.success),
+              ),
+              if (order.serviceFee > 0)
+                Text(
+                  'service fee',
+                  style: AppTextStyles.caption.copyWith(fontSize: 10),
+                ),
+            ],
           ),
         ],
       ),

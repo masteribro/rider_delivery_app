@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -55,6 +56,8 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
   }
 
   Widget _buildDeliveryView(OrderModel order) {
+    final riderEarning = order.serviceFee > 0 ? order.serviceFee : order.deliveryFee;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -113,15 +116,57 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
                     Text('Your Earnings', style: AppTextStyles.labelMedium),
                     Text(
                       NumberFormat.currency(symbol: '\u20A6', decimalDigits: 0)
-                          .format(order.deliveryFee),
+                          .format(riderEarning),
                       style: AppTextStyles.labelMedium.copyWith(color: AppColors.success),
                     ),
                   ],
                 ),
+                if (order.serviceFee > 0) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'From service fee',
+                    style: AppTextStyles.caption.copyWith(color: AppColors.textTertiary),
+                  ),
+                ],
               ],
             ),
           ),
           const SizedBox(height: 24),
+
+          // Delivery PIN info
+          if (order.deliveryPin != null && order.deliveryPin!.isNotEmpty) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.infoLight,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.pin_outlined, size: 22, color: AppColors.info),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Delivery PIN Required',
+                          style: AppTextStyles.labelSmall.copyWith(color: AppColors.info),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Ask the customer for their 4-digit delivery PIN to confirm delivery.',
+                          style: AppTextStyles.caption,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
 
           if (order.notes != null && order.notes!.isNotEmpty) ...[
             Container(
@@ -156,7 +201,7 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: _isCompleting ? null : () => _completeDelivery(order),
+              onPressed: _isCompleting ? null : () => _onCompletePressed(order),
               icon: _isCompleting
                   ? const SizedBox(
                       width: 20,
@@ -185,6 +230,110 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _onCompletePressed(OrderModel order) async {
+    if (order.deliveryPin != null && order.deliveryPin!.isNotEmpty) {
+      _showPinDialog(order);
+    } else {
+      await _completeDelivery(order);
+    }
+  }
+
+  void _showPinDialog(OrderModel order) {
+    final pinController = TextEditingController();
+    String? errorText;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.primarySurface,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.pin_outlined, color: AppColors.primary, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text('Enter Delivery PIN'),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Ask the customer for their 4-digit PIN to confirm delivery.',
+                    style: AppTextStyles.bodySmall,
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: pinController,
+                    keyboardType: TextInputType.number,
+                    maxLength: 4,
+                    textAlign: TextAlign.center,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    style: AppTextStyles.h2.copyWith(letterSpacing: 8),
+                    decoration: InputDecoration(
+                      hintText: '- - - -',
+                      hintStyle: AppTextStyles.h2.copyWith(
+                        color: AppColors.disabled,
+                        letterSpacing: 8,
+                      ),
+                      counterText: '',
+                      errorText: errorText,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    final pin = pinController.text.trim();
+                    if (pin.length != 4) {
+                      setDialogState(() => errorText = 'Please enter 4 digits');
+                      return;
+                    }
+                    final valid = await _orderRepo.verifyDeliveryPin(order.id, pin);
+                    if (valid) {
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      await _completeDelivery(order);
+                    } else {
+                      setDialogState(() => errorText = 'Incorrect PIN. Try again.');
+                      pinController.clear();
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.success,
+                  ),
+                  child: const Text('Confirm'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -304,6 +453,7 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
   }
 
   Widget _buildDeliveredView(OrderModel order) {
+    final riderEarning = order.serviceFee > 0 ? order.serviceFee : order.deliveryFee;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -323,9 +473,16 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
             Text('Delivery Complete!', style: AppTextStyles.h2),
             const SizedBox(height: 8),
             Text(
-              'You earned ${NumberFormat.currency(symbol: '\u20A6', decimalDigits: 0).format(order.deliveryFee)}',
+              'You earned ${NumberFormat.currency(symbol: '\u20A6', decimalDigits: 0).format(riderEarning)}',
               style: AppTextStyles.bodyLarge.copyWith(color: AppColors.success),
             ),
+            if (order.serviceFee > 0) ...[
+              const SizedBox(height: 4),
+              Text(
+                'From service fee',
+                style: AppTextStyles.caption.copyWith(color: AppColors.textTertiary),
+              ),
+            ],
             const SizedBox(height: 32),
             ElevatedButton(
               onPressed: () => context.go('/home'),

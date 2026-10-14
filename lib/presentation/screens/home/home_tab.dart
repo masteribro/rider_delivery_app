@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../bloc/auth/auth_cubit.dart';
 import '../../bloc/orders/orders_cubit.dart';
+import '../../bloc/notifications/notifications_cubit.dart';
 import '../../../data/models/order_model.dart';
 
 class HomeTab extends StatefulWidget {
@@ -22,6 +23,7 @@ class _HomeTabState extends State<HomeTab> {
     final authState = context.read<AuthCubit>().state;
     if (authState is AuthAuthenticated) {
       context.read<OrdersCubit>().startWatching(authState.rider.uid);
+      context.read<NotificationsCubit>().startWatching(authState.rider.uid);
     }
   }
 
@@ -96,9 +98,20 @@ class _HomeTabState extends State<HomeTab> {
                 ],
               ),
             ),
-            IconButton(
-              onPressed: () {},
-              icon: const Icon(Icons.notifications_outlined),
+            BlocBuilder<NotificationsCubit, NotificationsState>(
+              builder: (context, notifState) {
+                final unread = notifState is NotificationsLoaded
+                    ? notifState.unreadCount
+                    : 0;
+                return IconButton(
+                  onPressed: () => context.push('/notifications'),
+                  icon: Badge(
+                    isLabelVisible: unread > 0,
+                    label: Text('$unread'),
+                    child: const Icon(Icons.notifications_outlined),
+                  ),
+                );
+              },
             ),
           ],
         );
