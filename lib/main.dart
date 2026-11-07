@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'firebase_options.dart';
 import 'core/theme/app_theme.dart';
@@ -22,6 +23,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: '.env');
   if (Firebase.apps.isEmpty) {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   }
@@ -37,17 +39,17 @@ void main() async {
     statusBarIconBrightness: Brightness.dark,
   ));
 
-  runApp(const KaliRiderApp());
+  runApp(const AnfanaRiderApp());
 }
 
-class KaliRiderApp extends StatefulWidget {
-  const KaliRiderApp({super.key});
+class AnfanaRiderApp extends StatefulWidget {
+  const AnfanaRiderApp({super.key});
 
   @override
-  State<KaliRiderApp> createState() => _KaliRiderAppState();
+  State<AnfanaRiderApp> createState() => _AnfanaRiderAppState();
 }
 
-class _KaliRiderAppState extends State<KaliRiderApp> {
+class _AnfanaRiderAppState extends State<AnfanaRiderApp> {
   final _pushService = PushNotificationService();
 
   @override
@@ -74,7 +76,7 @@ class _KaliRiderAppState extends State<KaliRiderApp> {
         splitScreenMode: true,
         builder: (context, child) {
           return MaterialApp.router(
-            title: 'Kali Rider',
+            title: 'Anfana Rider',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.light,
             routerConfig: appRouter,

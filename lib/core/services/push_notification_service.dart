@@ -10,7 +10,7 @@ class PushNotificationService {
       FlutterLocalNotificationsPlugin();
 
   static const _androidChannel = AndroidNotificationChannel(
-    'kali_rider_orders',
+    'afana_rider_orders',
     'Order Notifications',
     description: 'Notifications for new orders and delivery updates',
     importance: Importance.high,
@@ -114,6 +114,6 @@ class PushNotificationService {
   }
 
   void _log(String message) {
-    dev.log('[FCM] $message', name: 'KaliRider');
+    dev.log('[FCM] $message', name: 'AnfanaRider');
   }
 }

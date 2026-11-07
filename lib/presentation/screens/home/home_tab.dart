@@ -38,7 +38,9 @@ class _HomeTabState extends State<HomeTab> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildHeader(),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+              _buildVerificationBanner(),
+              const SizedBox(height: 16),
               _buildOnlineToggle(),
               const SizedBox(height: 24),
               _buildStatsRow(),
@@ -119,11 +121,69 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
+  Widget _buildVerificationBanner() {
+    return BlocBuilder<AuthCubit, AuthState>(
+      builder: (context, state) {
+        final rider = state is AuthAuthenticated ? state.rider : null;
+        if (rider == null || rider.isVerified) return const SizedBox.shrink();
+
+        Color bgColor;
+        Color borderColor;
+        IconData icon;
+        String message;
+
+        if (rider.isVerificationPending) {
+          bgColor = AppColors.warningLight;
+          borderColor = AppColors.warning;
+          icon = Icons.hourglass_top_rounded;
+          message = 'Your documents are under review. You\'ll be notified once approved.';
+        } else if (rider.isRejected) {
+          bgColor = AppColors.errorLight;
+          borderColor = AppColors.error;
+          icon = Icons.error_outline;
+          message = 'Documents rejected. Please re-upload to continue.';
+        } else {
+          bgColor = AppColors.infoLight;
+          borderColor = AppColors.info;
+          icon = Icons.upload_file_outlined;
+          message = 'Upload your documents to start accepting deliveries.';
+        }
+
+        return GestureDetector(
+          onTap: () => context.push('/documents'),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: borderColor.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, color: borderColor, size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    message,
+                    style: AppTextStyles.caption.copyWith(fontSize: 12),
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: borderColor, size: 20),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildOnlineToggle() {
     return BlocBuilder<AuthCubit, AuthState>(
       builder: (context, state) {
         final rider = state is AuthAuthenticated ? state.rider : null;
         final isOnline = rider?.isOnline ?? false;
+        final canGoOnline = rider?.isVerified ?? false;
+
         return Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -148,7 +208,9 @@ class _HomeTabState extends State<HomeTab> {
                     Text(
                       isOnline
                           ? 'You can receive delivery requests'
-                          : 'Go online to start receiving orders',
+                          : canGoOnline
+                              ? 'Go online to start receiving orders'
+                              : 'Complete verification to go online',
                       style: AppTextStyles.bodySmall.copyWith(
                         color: AppColors.white.withValues(alpha: 0.8),
                       ),
@@ -160,9 +222,23 @@ class _HomeTabState extends State<HomeTab> {
                 scale: 1.2,
                 child: Switch(
                   value: isOnline,
-                  onChanged: (_) {
-                    context.read<AuthCubit>().toggleOnlineStatus();
-                  },
+                  onChanged: canGoOnline
+                      ? (_) => context.read<AuthCubit>().toggleOnlineStatus()
+                      : (_) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text('Please complete document verification first'),
+                              backgroundColor: AppColors.warning,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              action: SnackBarAction(
+                                label: 'Upload',
+                                textColor: AppColors.white,
+                                onPressed: () => context.push('/documents'),
+                              ),
+                            ),
+                          );
+                        },
                   activeThumbColor: AppColors.secondary,
                   activeTrackColor: AppColors.secondary.withValues(alpha: 0.4),
                   inactiveThumbColor: AppColors.white,

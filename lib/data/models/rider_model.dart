@@ -1,5 +1,62 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+class RiderDocument {
+  final String id;
+  final String type; // 'id_card', 'drivers_license', 'vehicle_registration'
+  final String imageUrl;
+  final String status; // 'pending', 'approved', 'rejected'
+  final String? rejectionReason;
+  final DateTime uploadedAt;
+
+  const RiderDocument({
+    required this.id,
+    required this.type,
+    required this.imageUrl,
+    this.status = 'pending',
+    this.rejectionReason,
+    required this.uploadedAt,
+  });
+
+  factory RiderDocument.fromMap(Map<String, dynamic> map) {
+    return RiderDocument(
+      id: map['id'] ?? '',
+      type: map['type'] ?? '',
+      imageUrl: map['imageUrl'] ?? '',
+      status: map['status'] ?? 'pending',
+      rejectionReason: map['rejectionReason'],
+      uploadedAt: (map['uploadedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'type': type,
+      'imageUrl': imageUrl,
+      'status': status,
+      'rejectionReason': rejectionReason,
+      'uploadedAt': Timestamp.fromDate(uploadedAt),
+    };
+  }
+
+  String get typeLabel {
+    switch (type) {
+      case 'id_card':
+        return 'Government ID';
+      case 'drivers_license':
+        return "Driver's License";
+      case 'vehicle_registration':
+        return 'Vehicle Registration';
+      default:
+        return type;
+    }
+  }
+
+  bool get isPending => status == 'pending';
+  bool get isApproved => status == 'approved';
+  bool get isRejected => status == 'rejected';
+}
+
 class RiderModel {
   final String uid;
   final String name;
@@ -15,6 +72,8 @@ class RiderModel {
   final int completedDeliveries;
   final double rating;
   final int ratingCount;
+  final String verificationStatus; // 'unverified', 'pending', 'verified', 'rejected'
+  final List<RiderDocument> documents;
   final DateTime createdAt;
 
   const RiderModel({
@@ -32,8 +91,30 @@ class RiderModel {
     this.completedDeliveries = 0,
     this.rating = 0,
     this.ratingCount = 0,
+    this.verificationStatus = 'unverified',
+    this.documents = const [],
     required this.createdAt,
   });
+
+  bool get isVerified => verificationStatus == 'verified';
+  bool get isVerificationPending => verificationStatus == 'pending';
+  bool get isRejected => verificationStatus == 'rejected';
+  bool get isUnverified => verificationStatus == 'unverified';
+
+  bool get hasAllDocuments {
+    final types = documents.map((d) => d.type).toSet();
+    return types.contains('id_card') &&
+        types.contains('drivers_license') &&
+        types.contains('vehicle_registration');
+  }
+
+  RiderDocument? getDocument(String type) {
+    try {
+      return documents.firstWhere((d) => d.type == type);
+    } catch (_) {
+      return null;
+    }
+  }
 
   factory RiderModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
@@ -52,6 +133,11 @@ class RiderModel {
       completedDeliveries: data['completedDeliveries'] ?? 0,
       rating: (data['rating'] ?? 0).toDouble(),
       ratingCount: data['ratingCount'] ?? 0,
+      verificationStatus: data['verificationStatus'] ?? 'unverified',
+      documents: (data['documents'] as List<dynamic>?)
+              ?.map((d) => RiderDocument.fromMap(d as Map<String, dynamic>))
+              .toList() ??
+          [],
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
@@ -71,6 +157,8 @@ class RiderModel {
       'completedDeliveries': completedDeliveries,
       'rating': rating,
       'ratingCount': ratingCount,
+      'verificationStatus': verificationStatus,
+      'documents': documents.map((d) => d.toMap()).toList(),
       'accountType': 'rider',
       'createdAt': Timestamp.fromDate(createdAt),
     };
@@ -90,6 +178,8 @@ class RiderModel {
     int? completedDeliveries,
     double? rating,
     int? ratingCount,
+    String? verificationStatus,
+    List<RiderDocument>? documents,
   }) {
     return RiderModel(
       uid: uid,
@@ -106,6 +196,8 @@ class RiderModel {
       completedDeliveries: completedDeliveries ?? this.completedDeliveries,
       rating: rating ?? this.rating,
       ratingCount: ratingCount ?? this.ratingCount,
+      verificationStatus: verificationStatus ?? this.verificationStatus,
+      documents: documents ?? this.documents,
       createdAt: createdAt,
     );
   }

@@ -91,7 +91,7 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                       const SizedBox(height: 20),
                       Text(
-                        'Kali Rider',
+                        'Anfana Rider',
                         style: AppTextStyles.h1.copyWith(
                           color: AppColors.white,
                           fontSize: 36,

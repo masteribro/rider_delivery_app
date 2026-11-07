@@ -18,6 +18,13 @@ class OrderModel {
   final String? notes;
   final String? deliveryPin;
   final double serviceFee;
+  final String? vendorAddress;
+  final double? vendorLat;
+  final double? vendorLng;
+  final double? deliveryLat;
+  final double? deliveryLng;
+  final double? riderLat;
+  final double? riderLng;
   final DateTime createdAt;
   final DateTime? pickedUpAt;
   final DateTime? deliveredAt;
@@ -40,6 +47,13 @@ class OrderModel {
     this.notes,
     this.deliveryPin,
     this.serviceFee = 0,
+    this.vendorAddress,
+    this.vendorLat,
+    this.vendorLng,
+    this.deliveryLat,
+    this.deliveryLng,
+    this.riderLat,
+    this.riderLng,
     required this.createdAt,
     this.pickedUpAt,
     this.deliveredAt,
@@ -95,6 +109,13 @@ class OrderModel {
       notes: data['notes'],
       deliveryPin: data['deliveryPin'],
       serviceFee: (data['serviceFee'] ?? 0).toDouble(),
+      vendorAddress: data['vendorAddress'],
+      vendorLat: (data['vendorLat'] as num?)?.toDouble(),
+      vendorLng: (data['vendorLng'] as num?)?.toDouble(),
+      deliveryLat: (data['deliveryLat'] as num?)?.toDouble(),
+      deliveryLng: (data['deliveryLng'] as num?)?.toDouble(),
+      riderLat: (data['riderLat'] as num?)?.toDouble(),
+      riderLng: (data['riderLng'] as num?)?.toDouble(),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       pickedUpAt: (data['pickedUpAt'] as Timestamp?)?.toDate(),
       deliveredAt: (data['deliveredAt'] as Timestamp?)?.toDate(),

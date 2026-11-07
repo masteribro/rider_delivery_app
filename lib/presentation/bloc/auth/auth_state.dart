@@ -27,6 +27,8 @@ class AuthAuthenticated extends AuthState {
         rider.totalEarnings,
         rider.completedDeliveries,
         rider.rating,
+        rider.verificationStatus,
+        rider.documents.length,
       ];
 }
 

@@ -1,13 +1,19 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:dio/dio.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../data/models/order_model.dart';
 import '../../../data/repositories/order_repository.dart';
+import '../../../core/services/places_service.dart';
 import '../../bloc/auth/auth_cubit.dart';
 import '../../bloc/orders/orders_cubit.dart';
 
@@ -21,7 +27,234 @@ class ActiveDeliveryScreen extends StatefulWidget {
 
 class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
   final _orderRepo = OrderRepository();
+  final _placesService = PlacesService();
   bool _isCompleting = false;
+
+  // Map state
+  GoogleMapController? _mapController;
+  LatLng? _riderPosition;
+  LatLng? _destinationPosition;
+  List<LatLng> _routePoints = [];
+  String? _duration;
+  String? _distance;
+  StreamSubscription<Position>? _positionStream;
+  bool _mapReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startLocationTracking();
+  }
+
+  @override
+  void dispose() {
+    _positionStream?.cancel();
+    _mapController?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _startLocationTracking() async {
+    final permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      final requested = await Geolocator.requestPermission();
+      if (requested == LocationPermission.denied ||
+          requested == LocationPermission.deniedForever) return;
+    }
+
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 10),
+        ),
+      );
+      if (mounted) {
+        setState(() {
+          _riderPosition = LatLng(position.latitude, position.longitude);
+        });
+        _updateRouteIfReady();
+      }
+    } catch (_) {}
+
+    _positionStream = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10,
+      ),
+    ).listen((position) {
+      if (mounted) {
+        setState(() {
+          _riderPosition = LatLng(position.latitude, position.longitude);
+        });
+        _fitMapBounds();
+        // Push location to Firestore for customer tracking
+        _orderRepo.updateRiderLocation(
+          widget.orderId,
+          position.latitude,
+          position.longitude,
+        );
+      }
+    });
+  }
+
+  Future<void> _resolveDestination(String address) async {
+    if (_destinationPosition != null) return;
+    final result = await _placesService.getLatLngFromAddress(address);
+    if (result != null && mounted) {
+      setState(() {
+        _destinationPosition = LatLng(result.lat, result.lng);
+      });
+      _updateRouteIfReady();
+    }
+  }
+
+  Future<void> _updateRouteIfReady() async {
+    if (_riderPosition == null || _destinationPosition == null) return;
+    _fitMapBounds();
+    await _fetchRoute();
+  }
+
+  Future<void> _fetchRoute() async {
+    final origin = _riderPosition;
+    final dest = _destinationPosition;
+    if (origin == null || dest == null) return;
+
+    final apiKey = dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '';
+    if (apiKey.isEmpty) return;
+
+    try {
+      final response = await Dio().get(
+        'https://maps.googleapis.com/maps/api/directions/json',
+        queryParameters: {
+          'origin': '${origin.latitude},${origin.longitude}',
+          'destination': '${dest.latitude},${dest.longitude}',
+          'mode': 'driving',
+          'key': apiKey,
+        },
+        options: Options(
+          sendTimeout: const Duration(seconds: 15),
+          receiveTimeout: const Duration(seconds: 15),
+        ),
+      );
+
+      final data = response.data as Map<String, dynamic>;
+      if (data['status'] == 'OK') {
+        final routes = data['routes'] as List<dynamic>;
+        if (routes.isNotEmpty) {
+          final route = routes[0] as Map<String, dynamic>;
+          final points = _decodePolyline(
+              route['overview_polyline']['points'] as String);
+          final leg =
+              (route['legs'] as List<dynamic>).first as Map<String, dynamic>;
+
+          if (mounted) {
+            setState(() {
+              _routePoints = points;
+              _duration = leg['duration']?['text'] as String?;
+              _distance = leg['distance']?['text'] as String?;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[ActiveDelivery] Directions error: $e');
+    }
+  }
+
+  List<LatLng> _decodePolyline(String encoded) {
+    final points = <LatLng>[];
+    int index = 0;
+    int lat = 0;
+    int lng = 0;
+
+    while (index < encoded.length) {
+      int shift = 0;
+      int result = 0;
+      int byte;
+      do {
+        byte = encoded.codeUnitAt(index++) - 63;
+        result |= (byte & 0x1F) << shift;
+        shift += 5;
+      } while (byte >= 0x20);
+      lat += (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
+
+      shift = 0;
+      result = 0;
+      do {
+        byte = encoded.codeUnitAt(index++) - 63;
+        result |= (byte & 0x1F) << shift;
+        shift += 5;
+      } while (byte >= 0x20);
+      lng += (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
+
+      points.add(LatLng(lat / 1E5, lng / 1E5));
+    }
+    return points;
+  }
+
+  void _fitMapBounds() {
+    if (_mapController == null || !_mapReady) return;
+
+    final positions = <LatLng>[];
+    if (_riderPosition != null) positions.add(_riderPosition!);
+    if (_destinationPosition != null) positions.add(_destinationPosition!);
+    if (positions.length < 2) return;
+
+    double minLat = positions[0].latitude;
+    double maxLat = positions[0].latitude;
+    double minLng = positions[0].longitude;
+    double maxLng = positions[0].longitude;
+
+    for (final p in positions) {
+      if (p.latitude < minLat) minLat = p.latitude;
+      if (p.latitude > maxLat) maxLat = p.latitude;
+      if (p.longitude < minLng) minLng = p.longitude;
+      if (p.longitude > maxLng) maxLng = p.longitude;
+    }
+
+    _mapController!.animateCamera(
+      CameraUpdate.newLatLngBounds(
+        LatLngBounds(
+          southwest: LatLng(minLat, minLng),
+          northeast: LatLng(maxLat, maxLng),
+        ),
+        60,
+      ),
+    );
+  }
+
+  Set<Marker> _buildMarkers() {
+    final markers = <Marker>{};
+    if (_riderPosition != null) {
+      markers.add(Marker(
+        markerId: const MarkerId('rider'),
+        position: _riderPosition!,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+        infoWindow: const InfoWindow(title: 'You'),
+      ));
+    }
+    if (_destinationPosition != null) {
+      markers.add(Marker(
+        markerId: const MarkerId('destination'),
+        position: _destinationPosition!,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+        infoWindow: const InfoWindow(title: 'Delivery Location'),
+      ));
+    }
+    return markers;
+  }
+
+  Set<Polyline> _buildPolylines() {
+    if (_routePoints.isEmpty) return {};
+    return {
+      Polyline(
+        polylineId: const PolylineId('route'),
+        points: _routePoints,
+        color: AppColors.secondary,
+        width: 5,
+      ),
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,11 +279,96 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
               child: Text('Order not found', style: AppTextStyles.bodyLarge),
             );
           }
+
+          // Resolve destination from order address (use lat/lng if available)
+          if (_destinationPosition == null) {
+            if (order.deliveryLat != null && order.deliveryLng != null) {
+              _destinationPosition = LatLng(order.deliveryLat!, order.deliveryLng!);
+              _updateRouteIfReady();
+            } else {
+              _resolveDestination(order.deliveryAddress);
+            }
+          }
+
           if (order.status == 'delivered') {
             return _buildDeliveredView(order);
           }
           return _buildDeliveryView(order);
         },
+      ),
+    );
+  }
+
+  Widget _buildMapSection() {
+    final initialPosition = _riderPosition ?? const LatLng(9.0579, 7.4951); // Abuja default
+
+    return Container(
+      height: 250,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border, width: 0.5),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
+          GoogleMap(
+            initialCameraPosition: CameraPosition(
+              target: initialPosition,
+              zoom: 14,
+            ),
+            markers: _buildMarkers(),
+            polylines: _buildPolylines(),
+            myLocationEnabled: false,
+            myLocationButtonEnabled: false,
+            zoomControlsEnabled: false,
+            mapToolbarEnabled: false,
+            onMapCreated: (controller) {
+              _mapController = controller;
+              _mapReady = true;
+              _fitMapBounds();
+            },
+          ),
+          // Duration/Distance badge
+          if (_duration != null || _distance != null)
+            Positioned(
+              top: 12,
+              left: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.directions_car, size: 16, color: AppColors.secondary),
+                    const SizedBox(width: 6),
+                    Text(
+                      [if (_duration != null) _duration!, if (_distance != null) _distance!]
+                          .join(' - '),
+                      style: const TextStyle(
+                        color: AppColors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          // Recenter button
+          Positioned(
+            bottom: 12,
+            right: 12,
+            child: FloatingActionButton.small(
+              heroTag: 'recenter',
+              onPressed: _fitMapBounds,
+              backgroundColor: AppColors.white,
+              child: const Icon(Icons.my_location, color: AppColors.primary, size: 20),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -65,15 +383,31 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
         children: [
           // Progress indicator
           _buildProgressSection(order),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+
+          // Live Map
+          _buildMapSection(),
+          const SizedBox(height: 16),
 
           // Pickup info
           _buildLocationCard(
             icon: Icons.store_outlined,
             iconColor: AppColors.primary,
             title: 'Pickup from',
-            subtitle: order.vendorName,
-            trailing: null,
+            subtitle: order.vendorAddress != null && order.vendorAddress!.isNotEmpty
+                ? '${order.vendorName}\n${order.vendorAddress}'
+                : order.vendorName,
+            trailing: order.vendorLat != null && order.vendorLng != null
+                ? IconButton(
+                    icon: const Icon(Icons.navigation_outlined, color: AppColors.primary),
+                    tooltip: 'Navigate to vendor',
+                    onPressed: () {
+                      launchUrl(Uri.parse(
+                        'google.navigation:q=${order.vendorLat},${order.vendorLng}&mode=d',
+                      ));
+                    },
+                  )
+                : null,
           ),
           const SizedBox(height: 12),
 
@@ -446,7 +780,7 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
               ],
             ),
           ),
-          ?trailing,
+          if (trailing != null) trailing,
         ],
       ),
     );

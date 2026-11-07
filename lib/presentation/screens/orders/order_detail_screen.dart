@@ -40,6 +40,8 @@ class OrderDetailScreen extends StatelessWidget {
                 const SizedBox(height: 20),
                 _buildSection('Pickup Location', [
                   _buildInfoRow(Icons.store_outlined, order.vendorName),
+                  if (order.vendorAddress != null && order.vendorAddress!.isNotEmpty)
+                    _buildInfoRow(Icons.place_outlined, order.vendorAddress!),
                 ]),
                 const SizedBox(height: 16),
                 _buildSection('Delivery Address', [

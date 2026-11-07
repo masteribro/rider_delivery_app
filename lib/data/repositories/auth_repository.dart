@@ -80,6 +80,6 @@ class AuthRepository {
   }
 
   void _log(String tag, String message) {
-    dev.log('[$tag] $message', name: 'KaliRider');
+    dev.log('[$tag] $message', name: 'AnfanaRider');
   }
 }

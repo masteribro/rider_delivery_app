@@ -71,6 +71,6 @@ class NotificationRepository {
   }
 
   void _log(String message) {
-    dev.log('[FIRESTORE] $message', name: 'KaliRider');
+    dev.log('[FIRESTORE] $message', name: 'AnfanaRider');
   }
 }

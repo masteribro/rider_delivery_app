@@ -151,6 +151,13 @@ class OrderRepository {
     _log('COMPLETE order/$orderId -> SUCCESS (earned: $riderEarning)');
   }
 
+  Future<void> updateRiderLocation(String orderId, double lat, double lng) async {
+    await _firestore.collection('orders').doc(orderId).update({
+      'riderLat': lat,
+      'riderLng': lng,
+    });
+  }
+
   Future<List<OrderModel>> getCompletedOrders(String riderId) async {
     _log('GET completed orders (riderId=$riderId)');
     final snapshot = await _firestore
@@ -171,6 +178,6 @@ class OrderRepository {
   }
 
   void _log(String message) {
-    dev.log('[FIRESTORE] $message', name: 'KaliRider');
+    dev.log('[FIRESTORE] $message', name: 'AnfanaRider');
   }
 }

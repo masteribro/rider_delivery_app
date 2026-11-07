@@ -120,8 +120,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 8),
                   Text(
                     _isSignUp
-                        ? 'Sign up to start delivering and earning with Kali.'
-                        : 'Sign in to continue delivering with Kali.',
+                        ? 'Sign up to start delivering and earning with Anfana.'
+                        : 'Sign in to continue delivering with Anfana.',
                     style: AppTextStyles.bodyMedium.copyWith(
                       color: AppColors.textSecondary,
                     ),

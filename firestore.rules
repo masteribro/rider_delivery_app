@@ -1,0 +1,170 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================
+    // USERS (Customer profiles)
+    // ============================================
+    match /users/{userId} {
+      // Customers can only read/write their own profile
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false;
+    }
+
+    // ============================================
+    // RIDERS (Rider profiles)
+    // ============================================
+    match /riders/{riderId} {
+      // Riders can only read/write their own profile
+      allow read: if request.auth != null && request.auth.uid == riderId;
+      allow create: if request.auth != null && request.auth.uid == riderId;
+      allow update: if request.auth != null && request.auth.uid == riderId;
+      allow delete: if false;
+    }
+
+    // ============================================
+    // VENDORS (Store profiles)
+    // ============================================
+    match /vendors/{vendorId} {
+      // Any authenticated user can read vendors (customers browse them)
+      allow read: if request.auth != null;
+
+      // Only the owner can create a vendor (ownerId must match their auth uid)
+      allow create: if request.auth != null
+                    && request.resource.data.ownerId == request.auth.uid;
+
+      // Only the owner can update their vendor
+      allow update: if request.auth != null
+                    && resource.data.ownerId == request.auth.uid;
+
+      allow delete: if false;
+    }
+
+    // ============================================
+    // PRODUCTS (Menu items)
+    // ============================================
+    match /products/{productId} {
+      // Any authenticated user can read products (customers browse them)
+      allow read: if request.auth != null;
+
+      // Only the vendor owner can create products for their store
+      allow create: if request.auth != null
+                    && exists(/databases/$(database)/documents/vendors/$(request.resource.data.vendorId))
+                    && get(/databases/$(database)/documents/vendors/$(request.resource.data.vendorId)).data.ownerId == request.auth.uid;
+
+      // Only the vendor owner can update/delete their products
+      allow update: if request.auth != null
+                    && exists(/databases/$(database)/documents/vendors/$(resource.data.vendorId))
+                    && get(/databases/$(database)/documents/vendors/$(resource.data.vendorId)).data.ownerId == request.auth.uid;
+
+      allow delete: if request.auth != null
+                    && exists(/databases/$(database)/documents/vendors/$(resource.data.vendorId))
+                    && get(/databases/$(database)/documents/vendors/$(resource.data.vendorId)).data.ownerId == request.auth.uid;
+    }
+
+    // ============================================
+    // ORDERS
+    // ============================================
+    match /orders/{orderId} {
+      // Customers can read their own orders
+      // Riders can read orders assigned to them OR available orders (status == 'ready')
+      // Vendors can read orders for their store
+      allow read: if request.auth != null
+                  && (
+                    resource.data.userId == request.auth.uid
+                    || resource.data.riderId == request.auth.uid
+                    || resource.data.status == 'ready'
+                    || isVendorOwner(resource.data.vendorId)
+                  );
+
+      // Only customers can create orders (userId must match auth)
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.status == 'pending';
+
+      // Updates are allowed based on role and valid status transitions
+      allow update: if request.auth != null
+                    && (
+                      // Customer can only cancel their own pending orders
+                      (
+                        resource.data.userId == request.auth.uid
+                        && resource.data.status == 'pending'
+                        && request.resource.data.status == 'cancelled'
+                      )
+                      // Vendor can progress: pending->confirmed, confirmed->preparing, preparing->ready, or cancel pending
+                      || (
+                        isVendorOwner(resource.data.vendorId)
+                        && (
+                          (resource.data.status == 'pending' && request.resource.data.status == 'confirmed')
+                          || (resource.data.status == 'pending' && request.resource.data.status == 'cancelled')
+                          || (resource.data.status == 'confirmed' && request.resource.data.status == 'preparing')
+                          || (resource.data.status == 'preparing' && request.resource.data.status == 'ready')
+                        )
+                      )
+                      // Rider can accept a ready order (set riderId, status to picked_up)
+                      || (
+                        resource.data.status == 'ready'
+                        && request.resource.data.status == 'picked_up'
+                        && request.resource.data.riderId == request.auth.uid
+                      )
+                      // Rider can complete their own delivery
+                      || (
+                        resource.data.riderId == request.auth.uid
+                        && resource.data.status == 'picked_up'
+                        && request.resource.data.status == 'delivered'
+                      )
+                      // Rider can update their live location on their own active delivery
+                      || (
+                        resource.data.riderId == request.auth.uid
+                        && resource.data.status == 'picked_up'
+                        && request.resource.data.status == 'picked_up'
+                      )
+                    );
+
+      allow delete: if false;
+    }
+
+    // ============================================
+    // NOTIFICATIONS (Rider notifications)
+    // ============================================
+    match /notifications/{notificationId} {
+      // Riders can only read their own notifications
+      allow read: if request.auth != null
+                  && resource.data.riderId == request.auth.uid;
+
+      // Riders can create notifications for themselves
+      allow create: if request.auth != null
+                    && request.resource.data.riderId == request.auth.uid;
+
+      // Riders can update their own notifications (mark as read)
+      allow update: if request.auth != null
+                    && resource.data.riderId == request.auth.uid;
+
+      allow delete: if false;
+    }
+
+    // ============================================
+    // CATEGORIES (Read-only reference data)
+    // ============================================
+    match /categories/{categoryId} {
+      // Any authenticated user can read categories
+      allow read: if request.auth != null;
+
+      // No client-side writes (seed via Admin SDK or console)
+      allow write: if false;
+    }
+
+    // ============================================
+    // HELPER FUNCTIONS
+    // ============================================
+
+    // Check if the authenticated user owns the vendor
+    function isVendorOwner(vendorId) {
+      return exists(/databases/$(database)/documents/vendors/$(vendorId))
+             && get(/databases/$(database)/documents/vendors/$(vendorId)).data.ownerId == request.auth.uid;
+    }
+  }
+}

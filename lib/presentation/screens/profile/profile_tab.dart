@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../data/models/rider_model.dart';
 import '../../bloc/auth/auth_cubit.dart';
 
 class ProfileTab extends StatelessWidget {
@@ -81,6 +82,10 @@ class ProfileTab extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
 
+                // Verification status
+                _buildVerificationCard(rider, context),
+                const SizedBox(height: 20),
+
                 // Actions
                 Container(
                   decoration: BoxDecoration(
@@ -90,6 +95,12 @@ class ProfileTab extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
+                      _buildActionTile(
+                        Icons.verified_user_outlined,
+                        'Documents & Verification',
+                        () => context.push('/documents'),
+                      ),
+                      const Divider(height: 0),
                       _buildActionTile(
                         Icons.edit_outlined,
                         'Edit Profile',
@@ -181,6 +192,64 @@ class ProfileTab extends StatelessWidget {
       default:
         return type;
     }
+  }
+
+  Widget _buildVerificationCard(RiderModel rider, BuildContext context) {
+    Color color;
+    Color bgColor;
+    IconData icon;
+    String label;
+
+    if (rider.isVerified) {
+      color = AppColors.success;
+      bgColor = AppColors.successLight;
+      icon = Icons.verified;
+      label = 'Verified';
+    } else if (rider.isVerificationPending) {
+      color = AppColors.warning;
+      bgColor = AppColors.warningLight;
+      icon = Icons.hourglass_top_rounded;
+      label = 'Pending Review';
+    } else if (rider.isRejected) {
+      color = AppColors.error;
+      bgColor = AppColors.errorLight;
+      icon = Icons.error_outline;
+      label = 'Rejected - Action Required';
+    } else {
+      color = AppColors.info;
+      bgColor = AppColors.infoLight;
+      icon = Icons.upload_file_outlined;
+      label = 'Documents Required';
+    }
+
+    return GestureDetector(
+      onTap: () => context.push('/documents'),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Verification Status', style: AppTextStyles.caption),
+                  const SizedBox(height: 2),
+                  Text(label, style: AppTextStyles.labelMedium.copyWith(color: color)),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: color, size: 20),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showEditDialog(BuildContext context) {
