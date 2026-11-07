@@ -76,17 +76,12 @@ class _SplashScreenState extends State<SplashScreen>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: AppColors.secondary,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Icon(
-                          Icons.delivery_dining_rounded,
-                          size: 44,
-                          color: AppColors.primary,
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: Image.asset(
+                          'assets/images/anfana_logo_1024.png',
+                          width: 80,
+                          height: 80,
                         ),
                       ),
                       const SizedBox(height: 20),
